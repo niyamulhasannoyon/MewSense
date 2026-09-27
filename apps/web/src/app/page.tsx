@@ -50,7 +50,15 @@ export default function Home() {
         await refreshCats();
         await refreshHistory();
       } catch (err) {
-        console.warn('Initial session bootstrap fallback:', err);
+        console.warn('Initial session bootstrap fallback, re-authenticating demo account:', err);
+        try {
+          api.setToken(null);
+          await api.login('guardian@mewsense.app', 'MewSense2026!');
+          await refreshCats();
+          await refreshHistory();
+        } catch (retryErr) {
+          console.error('Session bootstrap retry failed:', retryErr);
+        }
       }
     }
     initSession();

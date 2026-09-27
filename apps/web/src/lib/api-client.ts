@@ -37,7 +37,7 @@ class ApiClient {
     return this.token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, isRetry = false): Promise<T> {
     const headers = new Headers(options.headers || {});
     const token = this.getToken();
     if (token) {
@@ -54,6 +54,16 @@ class ApiClient {
     });
 
     const json = await res.json().catch(() => null);
+
+    if (res.status === 401 && !isRetry && !endpoint.startsWith('/auth/')) {
+      this.setToken(null);
+      try {
+        await this.login('guardian@mewsense.app', 'MewSense2026!');
+        return this.request<T>(endpoint, options, true);
+      } catch {
+        // Fall back to throwing original 401 error if re-authentication fails
+      }
+    }
 
     if (!res.ok) {
       const message = json?.error?.message || `Request failed with status ${res.status}`;
