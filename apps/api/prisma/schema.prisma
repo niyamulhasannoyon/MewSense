@@ -1,0 +1,343 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  USER
+  ANNOTATOR
+  RESEARCHER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum CatSex {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum RecordingSource {
+  MICROPHONE_WEB
+  MICROPHONE_MOBILE
+  FILE_UPLOAD
+}
+
+enum AnalysisStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ModelStatus {
+  ACTIVE
+  CANDIDATE
+  DEPRECATED
+  ROLLED_BACK
+}
+
+enum DatasetSplit {
+  TRAIN
+  VAL
+  TEST
+}
+
+enum AnnotationStatus {
+  UNANNOTATED
+  IN_REVIEW
+  VERIFIED
+}
+
+model User {
+  id                   String            @id @default(uuid())
+  email                String            @unique
+  passwordHash         String
+  fullName             String
+  role                 UserRole          @default(USER)
+  isEmailVerified      Boolean           @default(false)
+  avatarUrl            String?
+  allowTrainingConsent Boolean           @default(false)
+  languagePreference   String            @default("en")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  deletedAt            DateTime?
+
+  cats                 Cat[]
+  recordings           AudioRecording[]
+  feedbacks            Feedback[]
+  notifications        Notification[]
+  subscriptions        Subscription[]
+  usageRecords         UsageRecord[]
+  auditLogs            AuditLog[]
+  annotations          DatasetAnnotation[]
+
+  @@index([role])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Cat {
+  id           String            @id @default(uuid())
+  userId       String
+  name         String
+  breed        String?
+  birthDate    DateTime?
+  sex          CatSex            @default(UNKNOWN)
+  isNeutered   Boolean           @default(true)
+  avatarUrl    String?
+  medicalNotes String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recordings   AudioRecording[]
+
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("cats")
+}
+
+model AudioRecording {
+  id                     String            @id @default(uuid())
+  userId                 String
+  catId                  String?
+  storageKey             String            @unique
+  storageProvider        String            @default("local")
+  originalFilename       String
+  mimeType               String
+  fileSizeBytes          Int
+  sha256Hash             String
+  source                 RecordingSource   @default(MICROPHONE_WEB)
+  
+  // Contextual inputs
+  contextEnvironment    String?
+  contextActivity       String?
+  contextFoodPresent    Boolean?
+  contextOtherAnimals   Boolean?
+  contextUserNotes      String?
+  contextSelected       String?
+
+  isConsentedForResearch Boolean           @default(false)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  deletedAt              DateTime?
+
+  user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cat                    Cat?              @relation(fields: [catId], references: [id], onDelete: SetNull)
+  metadata               AudioMetadata?
+  analyses               Analysis[]
+  datasetSample          DatasetSample?
+
+  @@index([userId])
+  @@index([catId])
+  @@index([sha256Hash])
+  @@index([deletedAt])
+  @@map("audio_recordings")
+}
+
+model AudioMetadata {
+  id                      String         @id @default(uuid())
+  recordingId             String         @unique
+  durationSeconds         Float
+  sampleRate              Int
+  channels                Int
+  bitDepth                Int?
+  rmsEnergy               Float
+  pitchF0Min              Float?
+  pitchF0Max              Float?
+  pitchF0Mean             Float?
+  spectralCentroidMean    Float
+  zeroCrossingRateMean    Float
+  snrDb                   Float?
+  spectrogramThumbnailUrl String?
+  createdAt               DateTime       @default(now())
+
+  recording               AudioRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+
+  @@map("audio_metadata")
+}
+
+model Analysis {
+  id                  String         @id @default(uuid())
+  recordingId         String
+  status              AnalysisStatus @default(QUEUED)
+  stage               String         @default("queued")
+  errorMessage        String?
+  processingStartedAt DateTime?
+  completedAt         DateTime?
+  latencyMs           Int?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  recording           AudioRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  predictions         Prediction[]
+  feedbacks           Feedback[]
+
+  @@index([recordingId])
+  @@index([status])
+  @@map("analyses")
+}
+
+model ModelVersion {
+  id          String        @id @default(uuid())
+  name        String
+  version     String        @unique
+  description String
+  metrics     Json
+  status      ModelStatus   @default(ACTIVE)
+  deployedAt  DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+
+  predictions Prediction[]
+
+  @@map("model_versions")
+}
+
+model Prediction {
+  id                   String       @id @default(uuid())
+  analysisId           String
+  modelVersionId       String
+  primarySoundType     String
+  probableContext      String
+  confidence           Float
+  soundProbabilities   Json
+  contextProbabilities Json
+  explanationText      String
+  scientificDisclaimer String
+  isDistressPattern    Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+
+  analysis             Analysis     @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  modelVersion         ModelVersion @relation(fields: [modelVersionId], references: [id])
+
+  @@index([analysisId])
+  @@index([modelVersionId])
+  @@map("predictions")
+}
+
+model Feedback {
+  id                   String    @id @default(uuid())
+  userId               String
+  analysisId           String
+  isAccurate           Boolean
+  userPerceivedSound   String?
+  userPerceivedContext String?
+  notes                String?
+  createdAt            DateTime  @default(now())
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis             Analysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([analysisId])
+  @@map("feedbacks")
+}
+
+model DatasetSample {
+  id               String              @id @default(uuid())
+  recordingId      String              @unique
+  groupCatId       String?
+  split            DatasetSplit        @default(TRAIN)
+  status           AnnotationStatus    @default(UNANNOTATED)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  recording        AudioRecording      @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  annotations      DatasetAnnotation[]
+
+  @@index([split])
+  @@index([groupCatId])
+  @@map("dataset_samples")
+}
+
+model DatasetAnnotation {
+  id              String        @id @default(uuid())
+  datasetSampleId String
+  annotatorId     String
+  soundType       String
+  contextIntent   String
+  confidenceScore Float
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  sample          DatasetSample @relation(fields: [datasetSampleId], references: [id], onDelete: Cascade)
+  annotator       User          @relation(fields: [annotatorId], references: [id], onDelete: Cascade)
+
+  @@index([datasetSampleId])
+  @@index([annotatorId])
+  @@map("dataset_annotations")
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  userId               String
+  tier                 String    @default("FREE")
+  status               String    @default("ACTIVE")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodStart   DateTime  @default(now())
+  currentPeriodEnd     DateTime
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+model UsageRecord {
+  id              String   @id @default(uuid())
+  userId          String
+  day             DateTime @db.Date
+  recordingsCount Int      @default(0)
+  totalSeconds    Float    @default(0.0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@map("usage_records")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  linkUrl   String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  resource  String
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

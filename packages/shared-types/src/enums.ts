@@ -1,0 +1,86 @@
+export enum VocalizationType {
+  MEOW = 'MEOW',
+  PURR = 'PURR',
+  HISS = 'HISS',
+  GROWL = 'GROWL',
+  CHIRP_TRILL = 'CHIRP_TRILL',
+  CATERWAUL = 'CATERWAUL',
+  YOWL = 'YOWL',
+  OTHER_UNKNOWN = 'OTHER_UNKNOWN'
+}
+
+export enum ContextIntent {
+  HUNGRY_FOOD_SEEKING = 'HUNGRY_FOOD_SEEKING',
+  ATTENTION_SEEKING = 'ATTENTION_SEEKING',
+  GREETING_SOCIAL = 'GREETING_SOCIAL',
+  PLAYFUL_EXCITED = 'PLAYFUL_EXCITED',
+  FEAR_ANXIETY = 'FEAR_ANXIETY',
+  DEFENSIVE_THREATENED = 'DEFENSIVE_THREATENED',
+  DISCOMFORT_POSSIBLE_PAIN = 'DISCOMFORT_POSSIBLE_PAIN',
+  MATING_CALL = 'MATING_CALL',
+  TERRITORIAL_BEHAVIOR = 'TERRITORIAL_BEHAVIOR',
+  UNKNOWN_INSUFFICIENT_CONFIDENCE = 'UNKNOWN_INSUFFICIENT_CONFIDENCE'
+}
+
+export enum UserRole {
+  USER = 'USER',
+  ANNOTATOR = 'ANNOTATOR',
+  RESEARCHER = 'RESEARCHER',
+  ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN'
+}
+
+export enum AnalysisStatus {
+  QUEUED = 'QUEUED',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED'
+}
+
+export enum AnalysisStage {
+  UPLOADING = 'uploading',
+  AUDIO_PREPARATION = 'audio_prep',
+  EXTRACTING_FEATURES = 'feature_ext',
+  RUNNING_AI_MODEL = 'ai_model',
+  GENERATING_INTERPRETATION = 'interpretation',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
+
+export enum CatSex {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  UNKNOWN = 'UNKNOWN'
+}
+
+export enum RecordingSource {
+  MICROPHONE_WEB = 'MICROPHONE_WEB',
+  MICROPHONE_MOBILE = 'MICROPHONE_MOBILE',
+  FILE_UPLOAD = 'FILE_UPLOAD'
+}
+
+export enum EnvironmentContext {
+  INDOOR = 'indoor',
+  OUTDOOR = 'outdoor',
+  VET_CLINIC = 'vet_clinic',
+  SHELTER_CAGE = 'shelter_cage',
+  TRANSIT_CARRIER = 'transit_carrier',
+  UNKNOWN = 'unknown'
+}
+
+export enum ActivityContext {
+  RESTING = 'resting',
+  PLAYFUL = 'playful',
+  FEEDING = 'feeding',
+  ROAMING = 'roaming',
+  GROOMING = 'grooming',
+  SEEKING_SHELTER = 'seeking_shelter',
+  UNKNOWN = 'unknown'
+}
+
+export enum DatasetSplit {
+  TRAIN = 'TRAIN',
+  VAL = 'VAL',
+  TEST = 'TEST'
+}

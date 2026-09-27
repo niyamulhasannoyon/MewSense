@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mewsense-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: mewsense_prod
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mewsense-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mewsense-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mewsense-network
+
+  ml-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.ml
+    container_name: mewsense-ml-service
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    environment:
+      ML_SERVICE_SECRET: mewsense-internal-ml-secret-key
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/v1/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - mewsense-network
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: mewsense-api
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/mewsense_prod?schema=public
+      REDIS_URL: redis://redis:6379
+      ENABLE_IN_MEMORY_QUEUE_FALLBACK: 'false'
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_DIR: /app/storage/uploads
+      ML_SERVICE_URL: http://ml-service:8000
+      ML_SERVICE_SECRET: mewsense-internal-ml-secret-key
+      JWT_SECRET: production-super-secret-mewsense-jwt-key-32
+      REFRESH_TOKEN_SECRET: production-super-secret-mewsense-refresh-key-32
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    volumes:
+      - audio_storage:/app/storage/uploads
+    networks:
+      - mewsense-network
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+    container_name: mewsense-web
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    depends_on:
+      - api
+    networks:
+      - mewsense-network
+
+networks:
+  mewsense-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  audio_storage:

@@ -1,0 +1,128 @@
+name: MewSense CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Typecheck Workspace
+        run: pnpm typecheck
+
+  backend-tests:
+    name: Backend API & Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: mewsense_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Sync Test Database
+        env:
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/mewsense_test?schema=public
+        run: pnpm --filter @mewsense/api run db:push
+
+      - name: Run Backend Tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/mewsense_test?schema=public
+          JWT_SECRET: ci-test-jwt-secret-min-32-chars-long
+          REFRESH_TOKEN_SECRET: ci-test-refresh-secret-min-32-chars-long
+        run: pnpm --filter @mewsense/api run test
+
+  ml-tests:
+    name: ML Microservice Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install System Audio Libraries
+        run: sudo apt-get update && sudo apt-get install -y libsndfile1 ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r apps/ml-service/requirements.txt
+
+      - name: Run ML Pytest Suite
+        run: |
+          PYTHONPATH=apps/ml-service pytest apps/ml-service/test_ml.py -v
+
+      - name: Test Evaluation Metrics
+        run: |
+          python ml/evaluation/eval.py
+
+  build-production:
+    name: Production Build Verification
+    needs: [lint-and-typecheck, backend-tests, ml-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Build Web Application
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: pnpm --filter @mewsense/web run build

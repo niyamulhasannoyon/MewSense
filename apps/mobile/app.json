@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "MewSense",
+    "slug": "mewsense",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#09090b"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.mewsense.mobile",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "MewSense requires microphone access to record and analyze cat vocalizations."
+      }
+    },
+    "android": {
+      "package": "app.mewsense.mobile",
+      "permissions": [
+        "RECORD_AUDIO",
+        "INTERNET"
+      ]
+    }
+  }
+}
