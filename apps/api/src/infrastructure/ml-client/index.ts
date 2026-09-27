@@ -15,7 +15,7 @@ export class MLServiceClient {
   constructor(config?: Partial<MLClientConfig>) {
     this.baseUrl = config?.baseUrl || process.env.ML_SERVICE_URL || 'http://localhost:8000';
     this.secret = config?.secret || process.env.ML_SERVICE_SECRET || 'mewsense-internal-ml-secret-key';
-    this.timeoutMs = config?.timeoutMs || 10000;
+    this.timeoutMs = config?.timeoutMs || 300000;
   }
 
   async infer(audioBuffer: Buffer, context: any = {}): Promise<MLInferenceResult> {
@@ -86,10 +86,9 @@ export class MLServiceClient {
     const isHumanImitationOrSpeech =
       context?.isHumanSpeech === true ||
       context?.isHumanImitation === true ||
-      /human|speech|meow|person|fake/i.test(userNotesStr) ||
-      (buffer.length < 8000 && rmsEnergy < 0.02);
+      /human|speech|person|fake/i.test(userNotesStr);
 
-    const catProbability = isHumanImitationOrSpeech ? 0.15 : (buffer.length % 2 === 0 ? 0.88 : 0.82);
+    const catProbability = isHumanImitationOrSpeech ? 0.15 : 0.85;
 
     if (catProbability < CAT_REJECTION_THRESHOLD) {
       return {

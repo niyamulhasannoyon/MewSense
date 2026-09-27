@@ -45,8 +45,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand & System Status */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded border border-dsp-borderHighlight bg-dsp-surface text-dsp-amber font-mono font-bold text-xs shadow-inner">
-              <Radio className="h-4 w-4 text-dsp-amber animate-pulse" />
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-dsp-amber/40 bg-zinc-950 p-1 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+              <svg viewBox="0 0 64 64" className="h-full w-full">
+                <path d="M 14 18 L 23 28 L 41 28 L 50 18 L 47 36 L 32 52 L 17 36 Z" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinejoin="round"/>
+                <rect x="23" y="34" width="2.5" height="10" rx="1" fill="#06b6d4"/>
+                <rect x="27.5" y="31" width="2.5" height="15" rx="1" fill="#10b981"/>
+                <rect x="32" y="26" width="3" height="22" rx="1.5" fill="#f59e0b"/>
+                <rect x="37" y="31" width="2.5" height="15" rx="1" fill="#10b981"/>
+                <rect x="41.5" y="34" width="2.5" height="10" rx="1" fill="#06b6d4"/>
+              </svg>
             </div>
             <div>
               <div className="flex items-center gap-2">

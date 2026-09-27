@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" width="100%" height="100%">
+  <defs>
+    <linearGradient id="amberText" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <linearGradient id="markAmber" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="markCyan" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="markEmerald" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Logo Mark Graphic Container -->
+  <g transform="translate(10, 10)">
+    <rect width="100" height="100" rx="22" fill="#09090b" stroke="#27272a" stroke-width="2"/>
+    <rect width="96" height="96" x="2" y="2" rx="20" fill="none" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.3"/>
+    
+    <!-- Cat Head Contour -->
+    <path d="M 23 26 L 36 42 L 64 42 L 77 26 L 73 54 L 63 76 L 50 84 L 37 76 L 27 54 Z" 
+          fill="none" stroke="#f59e0b" stroke-width="3" stroke-linejoin="round"/>
+    
+    <!-- Spectrum Bars -->
+    <rect x="36" y="53" width="3" height="15" rx="1.5" fill="url(#markCyan)"/>
+    <rect x="41" y="48" width="3" height="22" rx="1.5" fill="url(#markEmerald)"/>
+    <rect x="46" y="42" width="3.5" height="30" rx="1.7" fill="url(#markAmber)"/>
+    <rect x="51.5" y="38" width="4" height="36" rx="2" fill="url(#markAmber)"/>
+    <rect x="57" y="42" width="3.5" height="30" rx="1.7" fill="url(#markAmber)"/>
+    <rect x="62.5" y="48" width="3" height="22" rx="1.5" fill="url(#markEmerald)"/>
+    <rect x="67.5" y="53" width="3" height="15" rx="1.5" fill="url(#markCyan)"/>
+  </g>
+
+  <!-- Logotype Text -->
+  <text x="130" y="65" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="44" letter-spacing="2" fill="url(#amberText)">
+    MEWSENSE
+  </text>
+  
+  <!-- Sub-title / Tagline -->
+  <text x="132" y="90" font-family="'JetBrains Mono', 'Fira Code', 'Courier New', monospace" font-weight="600" font-size="13" letter-spacing="3" fill="#06b6d4">
+    AI BIOACOUSTIC ANALYSIS • DSP ENGINE
+  </text>
+</svg>

@@ -304,8 +304,8 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onAudioReady }) =>
   };
 
   const processSelectedFile = (file: File) => {
-    if (file.size > 100 * 1024 * 1024) {
-      setErrorMessage('File size exceeds the 100MB limit for analysis.');
+    if (file.size > 2048 * 1024 * 1024) {
+      setErrorMessage('File size exceeds the 2GB maximum limit.');
       return;
     }
     setErrorMessage(null);
@@ -547,7 +547,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onAudioReady }) =>
                   </div>
                   <h3 className="text-sm font-bold text-white">Upload Video or Audio File</h3>
                   <p className="mt-1 text-xs text-zinc-400 max-w-md">
-                    {t.dragDropMediaText || 'Supports .mp4, .webm, .mov, .avi, .mkv video and .wav, .mp3, .m4a audio up to 100MB.'}
+                    {t.dragDropMediaText || 'Supports .mp4, .webm, .mov, .avi, .mkv video and .wav, .mp3, .m4a audio.'}
                   </p>
                   <input
                     type="file"

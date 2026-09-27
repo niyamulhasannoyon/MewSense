@@ -288,8 +288,8 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
   };
 
   const handleFileProcess = (file: File) => {
-    if (file.size > 20 * 1024 * 1024) {
-      setErrorMessage('Audio sample file size exceeds 20MB limit.');
+    if (file.size > 2048 * 1024 * 1024) {
+      setErrorMessage('File size exceeds the 2GB maximum limit.');
       return;
     }
     setErrorMessage(null);
@@ -325,10 +325,14 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-      if (file.type.startsWith('audio/') || file.name.endsWith('.wav') || file.name.endsWith('.m4a')) {
+      const isMedia =
+        file.type.startsWith('audio/') ||
+        file.type.startsWith('video/') ||
+        /\.(wav|m4a|mp3|ogg|webm|mp4|mov|avi|mkv|3gp|flac|aac)$/i.test(file.name);
+      if (isMedia) {
         handleFileProcess(file);
       } else {
-        setErrorMessage('Invalid file format. Please upload a .wav, .m4a, .mp3, or .webm audio file.');
+        setErrorMessage('Invalid file format. Please upload an audio or video file (.wav, .mp3, .m4a, .webm, .mp4, .mov, etc.).');
       }
     }
   };
@@ -401,7 +405,7 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*,.wav,.m4a,.mp3,.ogg,.webm"
+        accept="audio/*,video/*,.wav,.m4a,.mp3,.ogg,.webm,.mp4,.mov,.avi,.mkv,.3gp,.flac,.aac"
         className="hidden"
         onChange={handleFileInputChange}
       />
@@ -411,10 +415,10 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center rounded bg-dsp-bg/90 backdrop-blur-sm border-2 border-dashed border-dsp-amber">
           <Upload className="h-12 w-12 text-dsp-amber animate-bounce mb-2" />
           <h3 className="font-mono text-sm font-bold text-white uppercase tracking-wider">
-            Ingest Audio Sample
+            Ingest Audio / Video Sample
           </h3>
           <p className="font-mono text-xs text-dsp-muted mt-1">
-            Drop .wav, .m4a, .mp3, or .webm audio file into Web Audio DSP buffer
+            Drop any audio or video file (.mp4, .webm, .mov, .wav, .mp3, .m4a, etc.)
           </p>
         </div>
       )}
@@ -517,7 +521,7 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
                     Acoustic Processing Engine Ready
                   </h4>
                   <p className="font-mono text-[11px] text-dsp-muted mt-1 max-w-md">
-                    Press <kbd className="bg-dsp-elevated px-1 border border-dsp-borderHighlight text-dsp-amber">Space</kbd> to record live mic input or drag & drop audio sample (.wav / .m4a)
+                    Press <kbd className="bg-dsp-elevated px-1 border border-dsp-borderHighlight text-dsp-amber">Space</kbd> to record live mic input or drag & drop audio/video file (.mp4, .webm, .wav, .m4a)
                   </p>
                 </div>
               )}
@@ -616,7 +620,7 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
                   className="flex items-center gap-1.5 rounded border border-dsp-border bg-dsp-surface px-3 py-2 font-mono text-xs font-semibold text-zinc-300 hover:border-dsp-borderHighlight hover:text-white transition"
                 >
                   <Upload className="h-4 w-4 text-dsp-cyan" />
-                  <span>UPLOAD .WAV / .M4A</span>
+                  <span>UPLOAD AUDIO / VIDEO</span>
                 </button>
 
                 {audioUrl && (

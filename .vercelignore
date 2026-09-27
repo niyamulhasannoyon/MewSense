@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+**/node_modules
+apps/ml-service
+apps/mobile
+infrastructure
+docker-compose.yml
+storage/uploads
+.pytest_cache
+*.log
+.env.local
+.env.development
+.env.test

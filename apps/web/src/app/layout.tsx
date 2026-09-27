@@ -6,7 +6,14 @@ export const metadata: Metadata = {
   title: 'MewSense — Understand the Sound, Not Just the Meow',
   description: 'Production AI-assisted bioacoustic cat vocalization analysis and probabilistic behavioral interpretation. Understand the sound, not just the meow.',
   icons: {
-    icon: '/favicon.ico'
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.svg', type: 'image/svg+xml' }
+    ],
+    shortcut: ['/favicon.svg'],
+    apple: [
+      { url: '/logo-mark.svg', type: 'image/svg+xml' }
+    ]
   }
 };
 

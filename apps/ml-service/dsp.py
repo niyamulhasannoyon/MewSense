@@ -5,6 +5,7 @@ Pure NumPy and SciPy implementation for maximum portability and speed.
 import io
 import math
 import struct
+import functools
 import numpy as np
 from scipy import signal
 from typing import Tuple, Dict, Any, Optional
@@ -35,7 +36,7 @@ def decode_audio_with_ffmpeg(audio_bytes: bytes, target_sr: int = STANDARD_SAMPL
             "pipe:1"
         ]
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = proc.communicate(input=audio_bytes, timeout=20)
+        out, err = proc.communicate(input=audio_bytes, timeout=15)
         if proc.returncode == 0 and len(out) > 0:
             audio = np.frombuffer(out, dtype=np.int16).astype(np.float32) / 32768.0
             return audio
@@ -49,12 +50,7 @@ def decode_audio_bytes(audio_bytes: bytes) -> Tuple[np.ndarray, int]:
     if len(audio_bytes) < 44:
         raise ValueError("Audio payload is too small to contain valid audio data.")
 
-    # 1. Try ffmpeg decoding first (supports MP4, WEBM video/audio, MOV, AVI, MP3, AAC, OGGS, etc.)
-    ffmpeg_audio = decode_audio_with_ffmpeg(audio_bytes, STANDARD_SAMPLE_RATE)
-    if ffmpeg_audio is not None and len(ffmpeg_audio) > 0:
-        return ffmpeg_audio, STANDARD_SAMPLE_RATE
-
-    # 2. Check for RIFF WAV header fallback
+    # 1. Try in-memory RIFF WAV header first for instant 0ms decoding
     if audio_bytes[:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE":
         num_channels = struct.unpack_from("<H", audio_bytes, 22)[0]
         sample_rate = struct.unpack_from("<I", audio_bytes, 24)[0]
@@ -86,17 +82,28 @@ def decode_audio_bytes(audio_bytes: bytes) -> Tuple[np.ndarray, int]:
 
         return audio, sample_rate
 
-    # If raw 16-bit PCM fallback
+    # 2. Try ffmpeg decoding for video & compressed audio formats (MP4, WEBM, MOV, AVI, MP3, AAC, OGGS, etc.)
+    ffmpeg_audio = decode_audio_with_ffmpeg(audio_bytes, STANDARD_SAMPLE_RATE)
+    if ffmpeg_audio is not None and len(ffmpeg_audio) > 0:
+        return ffmpeg_audio, STANDARD_SAMPLE_RATE
+
+    # 3. Fallback for raw 16-bit PCM
     audio = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
     return audio, STANDARD_SAMPLE_RATE
 
 
 def resample_audio(audio: np.ndarray, orig_sr: int, target_sr: int = STANDARD_SAMPLE_RATE) -> np.ndarray:
-    """Resample audio signal to standard target sample rate."""
+    """Resample audio signal to standard target sample rate using polyphase FIR filtering."""
     if orig_sr == target_sr or len(audio) == 0:
         return audio
-    num_output_samples = int(round(len(audio) * float(target_sr) / orig_sr))
-    return signal.resample(audio, num_output_samples).astype(np.float32)
+    gcd = math.gcd(orig_sr, target_sr)
+    up = target_sr // gcd
+    down = orig_sr // gcd
+    try:
+        return signal.resample_poly(audio, up, down).astype(np.float32)
+    except Exception:
+        num_output_samples = int(round(len(audio) * float(target_sr) / orig_sr))
+        return signal.resample(audio, num_output_samples).astype(np.float32)
 
 
 def preprocess_signal(audio: np.ndarray, sr: int) -> Tuple[np.ndarray, float]:
@@ -107,25 +114,22 @@ def preprocess_signal(audio: np.ndarray, sr: int) -> Tuple[np.ndarray, float]:
     # 1. Remove DC bias
     audio = audio - np.mean(audio)
 
-    # 2. Estimate Signal-to-Noise Ratio (SNR)
+    # 2. Estimate Signal-to-Noise Ratio (SNR) - Vectorized
     frame_len = int(sr * 0.05)  # 50ms frames
-    if len(audio) > frame_len:
-        frames = [audio[i : i + frame_len] for i in range(0, len(audio) - frame_len, frame_len)]
-        frame_energies = [np.mean(f**2) for f in frames if len(f) > 0]
-        if frame_energies:
-            sorted_energies = sorted(frame_energies)
-            noise_floor = np.mean(sorted_energies[: max(1, len(sorted_energies) // 10)]) + 1e-8
-            signal_peak = np.mean(sorted_energies[-max(1, len(sorted_energies) // 10) :]) + 1e-8
-            dynamic_range_ratio = signal_peak / noise_floor
+    num_frames = len(audio) // frame_len
+    if num_frames > 0:
+        framed = audio[: num_frames * frame_len].reshape(num_frames, frame_len)
+        frame_energies = np.mean(framed**2, axis=1)
+        sorted_energies = np.sort(frame_energies)
+        noise_floor = float(np.mean(sorted_energies[: max(1, len(sorted_energies) // 10)])) + 1e-8
+        signal_peak = float(np.mean(sorted_energies[-max(1, len(sorted_energies) // 10) :])) + 1e-8
+        dynamic_range_ratio = signal_peak / noise_floor
 
-            rms = float(np.sqrt(np.mean(audio**2)))
-            if dynamic_range_ratio < 1.8 and rms > 0.02:
-                # Continuous active signal across all frames; compare to baseline noise floor
-                snr_db = float(10 * np.log10(rms**2 / 1e-4))
-            else:
-                snr_db = float(10 * np.log10(signal_peak / noise_floor))
+        rms = float(np.sqrt(np.mean(audio**2)))
+        if dynamic_range_ratio < 1.8 and rms > 0.02:
+            snr_db = float(10 * np.log10(rms**2 / 1e-4))
         else:
-            snr_db = 20.0
+            snr_db = float(10 * np.log10(signal_peak / noise_floor))
     else:
         snr_db = 20.0
 
@@ -138,19 +142,25 @@ def preprocess_signal(audio: np.ndarray, sr: int) -> Tuple[np.ndarray, float]:
 
 
 def compute_stft(audio: np.ndarray, n_fft: int = N_FFT, hop_length: int = HOP_LENGTH) -> np.ndarray:
-    """Computes Short-Time Fourier Transform magnitude spectrogram."""
-    window = np.hanning(n_fft)
+    """Computes Short-Time Fourier Transform magnitude spectrogram vectorised across frames."""
+    if len(audio) == 0:
+        return np.zeros((n_fft // 2 + 1, 1), dtype=np.float32)
+
+    window = np.hanning(n_fft).astype(np.float32)
     num_frames = max(1, 1 + (len(audio) - n_fft) // hop_length)
-    stft_matrix = np.empty((n_fft // 2 + 1, num_frames), dtype=np.float32)
 
-    for t in range(num_frames):
-        start = t * hop_length
-        frame = audio[start : start + n_fft]
-        if len(frame) < n_fft:
-            frame = np.pad(frame, (0, n_fft - len(frame)))
-        stft_matrix[:, t] = np.abs(np.fft.rfft(frame * window))
+    needed_samples = (num_frames - 1) * hop_length + n_fft
+    if len(audio) < needed_samples:
+        padded_audio = np.pad(audio, (0, needed_samples - len(audio)))
+    else:
+        padded_audio = audio
 
-    return stft_matrix
+    shape = (num_frames, n_fft)
+    strides = (padded_audio.strides[0] * hop_length, padded_audio.strides[0])
+    frames = np.lib.stride_tricks.as_strided(padded_audio, shape=shape, strides=strides)
+
+    stft_matrix = np.abs(np.fft.rfft(frames * window, axis=-1)).T
+    return stft_matrix.astype(np.float32)
 
 
 def hz_to_mel(hz: float) -> float:
@@ -161,8 +171,9 @@ def mel_to_hz(mel: float) -> float:
     return 700.0 * (10.0 ** (mel / 2595.0) - 1.0)
 
 
+@functools.lru_cache(maxsize=16)
 def get_mel_filterbank(sr: int, n_fft: int, n_mels: int, f_min: float, f_max: float) -> np.ndarray:
-    """Generates triangular Mel filterbank matrix."""
+    """Generates triangular Mel filterbank matrix (cached)."""
     mel_min = hz_to_mel(f_min)
     mel_max = hz_to_mel(f_max)
     mel_points = np.linspace(mel_min, mel_max, n_mels + 2)
@@ -206,40 +217,50 @@ def compute_mel_spectrogram(
 def compute_mfcc(log_mel: np.ndarray, n_mfcc: int = N_MFCC) -> np.ndarray:
     """Computes Mel-Frequency Cepstral Coefficients via Discrete Cosine Transform (DCT-II)."""
     n_mels, n_frames = log_mel.shape
-    mfcc = np.zeros((n_mfcc, n_frames), dtype=np.float32)
-    for i in range(n_mfcc):
-        factor = np.pi * i / n_mels
-        basis = np.cos(factor * (np.arange(n_mels) + 0.5))
-        mfcc[i, :] = np.dot(basis, log_mel)
-    return mfcc
+    basis = np.cos((np.pi * np.arange(n_mfcc)[:, None] / n_mels) * (np.arange(n_mels) + 0.5)).astype(np.float32)
+    return basis @ log_mel
 
 
 def estimate_pitch_f0(audio: np.ndarray, sr: int = STANDARD_SAMPLE_RATE) -> Tuple[float, float, float]:
-    """Estimates fundamental frequency (F0) using normalized autocorrelation.
-    Feline vocal fundamental frequency typically ranges from 150 Hz to 1200 Hz.
-    """
+    """Estimates fundamental frequency (F0) using FFT-accelerated normalized autocorrelation."""
     if len(audio) < sr * 0.1:
         return 0.0, 0.0, 0.0
 
     frame_len = int(sr * 0.05)  # 50ms window
     step = int(sr * 0.025)
-    f0_values = []
 
     min_period = int(sr / 1200.0)  # Max 1200 Hz
-    max_period = int(sr / 50.0)    # Min 50 Hz (supports purrs and deep growls)
+    max_period = int(sr / 50.0)    # Min 50 Hz
 
-    for start in range(0, len(audio) - frame_len, step):
-        frame = audio[start : start + frame_len]
-        if np.max(np.abs(frame)) < 0.02:
-            continue  # Silence
+    num_frames = (len(audio) - frame_len) // step
+    if num_frames <= 0:
+        return 0.0, 0.0, 0.0
 
-        # Autocorrelation
-        corr = np.correlate(frame, frame, mode="full")
-        corr = corr[len(corr) // 2 :]
+    shape = (num_frames, frame_len)
+    strides = (audio.strides[0] * step, audio.strides[0])
+    frames = np.lib.stride_tricks.as_strided(audio, shape=shape, strides=strides)
 
-        if len(corr) > max_period:
-            search_window = corr[min_period:max_period]
-            if len(search_window) > 0 and np.max(search_window) > 0.3 * corr[0]:
+    # Filter silence frames
+    max_abs = np.max(np.abs(frames), axis=1)
+    valid_mask = max_abs >= 0.02
+    valid_frames = frames[valid_mask]
+
+    if len(valid_frames) == 0:
+        return 0.0, 0.0, 0.0
+
+    # FFT autocorrelation across all frames
+    n_fft = 2 ** int(np.ceil(np.log2(2 * frame_len)))
+    fft_frames = np.fft.rfft(valid_frames, n=n_fft, axis=1)
+    corr = np.fft.irfft(fft_frames * np.conj(fft_frames), n=n_fft, axis=1)[:, :frame_len]
+
+    f0_values = []
+    zero_lags = corr[:, 0] + 1e-9
+
+    for i in range(len(valid_frames)):
+        frame_corr = corr[i]
+        if len(frame_corr) > max_period:
+            search_window = frame_corr[min_period:max_period]
+            if len(search_window) > 0 and np.max(search_window) > 0.3 * zero_lags[i]:
                 peak_lag = min_period + np.argmax(search_window)
                 f0 = float(sr / peak_lag)
                 f0_values.append(f0)
@@ -252,13 +273,9 @@ def estimate_pitch_f0(audio: np.ndarray, sr: int = STANDARD_SAMPLE_RATE) -> Tupl
 
 def compute_spectral_features(audio: np.ndarray, sr: int = STANDARD_SAMPLE_RATE) -> Dict[str, float]:
     """Computes spectral centroid, zero crossing rate, and RMS energy."""
-    # RMS Energy
     rms = float(np.sqrt(np.mean(audio**2)))
-
-    # Zero Crossing Rate
     zcr = float(np.mean(np.abs(np.diff(np.sign(audio)))) / 2.0)
 
-    # Spectral Centroid
     mag = np.abs(np.fft.rfft(audio[: min(len(audio), sr * 2)]))
     freqs = np.fft.rfftfreq(len(mag) * 2 - 1, 1.0 / sr)
     sum_mag = np.sum(mag)
@@ -302,7 +319,7 @@ def compute_human_vs_cat_acoustic_features(audio: np.ndarray, sr: int = STANDARD
     rolloff_idx = np.where(cum_energy >= 0.85 * total_energy)[0]
     rolloff_hz = float(freqs[rolloff_idx[0]]) if len(rolloff_idx) > 0 else 0.0
 
-    # Syllabic speech envelope modulation (rhythmic amplitude envelope at 3-8 Hz typical of human speech)
+    # Syllabic speech envelope modulation
     env = np.abs(signal.hilbert(audio))
     if len(env) > 128:
         env_fft = np.abs(np.fft.rfft(env - np.mean(env)))
@@ -318,4 +335,5 @@ def compute_human_vs_cat_acoustic_features(audio: np.ndarray, sr: int = STANDARD
         "spectral_rolloff": rolloff_hz,
         "speech_modulation_index": speech_modulation_index,
     }
+
 

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm --filter @mewsense/shared-types --filter @mewsense/validation build && next build",
+  "installCommand": "pnpm install"
+}

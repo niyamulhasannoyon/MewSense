@@ -21,17 +21,21 @@ export const ALLOWED_MEDIA_MIME_TYPES = [
   'audio/aac',
   'audio/ogg',
   'audio/webm',
+  'audio/flac',
+  'audio/x-flac',
   'video/mp4',
   'video/webm',
   'video/quicktime',
   'video/x-msvideo',
   'video/x-matroska',
-  'video/3gpp'
+  'video/3gpp',
+  'video/avi',
+  'video/mpeg'
 ] as const;
 
 export const ALLOWED_AUDIO_MIME_TYPES = ALLOWED_MEDIA_MIME_TYPES;
 
-export const MAX_AUDIO_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB (Video & Audio)
+export const MAX_AUDIO_FILE_SIZE_BYTES = 2048 * 1024 * 1024; // 2GB (Unlimited Video & Audio)
 export const MIN_RECORDING_DURATION_SECONDS = 0.4;
 export const MAX_RECORDING_DURATION_SECONDS = 120.0;
 
@@ -100,7 +104,7 @@ export const presignUploadSchema = z.object({
     .number()
     .int()
     .positive()
-    .max(MAX_AUDIO_FILE_SIZE_BYTES, 'Media file exceeds maximum 100MB limit'),
+    .max(MAX_AUDIO_FILE_SIZE_BYTES, 'Media file exceeds maximum 2GB limit'),
   source: z.nativeEnum(RecordingSource).default(RecordingSource.MICROPHONE_WEB),
   context: recordingContextSchema.optional()
 });

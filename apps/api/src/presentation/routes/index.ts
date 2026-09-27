@@ -11,7 +11,7 @@ import { checkDatabaseHealth } from '../../infrastructure/database/prisma.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 } // 15MB max
+  limits: { fileSize: 2048 * 1024 * 1024 } // 2GB max
 });
 
 export function createApiRouter(

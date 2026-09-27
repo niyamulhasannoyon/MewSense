@@ -4,7 +4,9 @@
   "private": true,
   "description": "Production AI-Powered Cat Vocalization Analysis Application",
   "scripts": {
-    "build": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" --filter \"./workers/*\" run build",
+    "build": "pnpm --filter @mewsense/api db:generate && pnpm --filter \"./packages/*\" --filter \"./apps/*\" --filter \"./workers/*\" run build",
+    "build:web": "pnpm --filter @mewsense/shared-types --filter @mewsense/validation build && pnpm --filter @mewsense/web build",
+    "build:api": "pnpm --filter @mewsense/shared-types --filter @mewsense/validation build && pnpm --filter @mewsense/api db:generate && pnpm --filter @mewsense/api build",
     "dev": "pnpm --parallel run dev",
     "dev:api": "pnpm --filter @mewsense/api run dev",
     "dev:web": "pnpm --filter @mewsense/web run dev",
