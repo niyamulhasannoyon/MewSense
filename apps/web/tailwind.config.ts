@@ -9,6 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        dsp: {
+          bg: '#0B0C0E',
+          surface: '#121417',
+          elevated: '#181B20',
+          border: '#1F2328',
+          borderHighlight: '#2D323A',
+          amber: '#F59E0B',
+          emerald: '#10B981',
+          cyan: '#06B6D4',
+          accent: '#38BDF8',
+          text: '#F3F4F6',
+          muted: '#8B949E'
+        },
         brand: {
           50: '#fff7ed',
           100: '#ffedd5',
@@ -20,23 +33,25 @@ const config: Config = {
           700: '#c2410c',
           800: '#9a3412',
           900: '#7c2d12',
-        },
-        feline: {
-          dark: '#18181b',
-          card: '#27272a',
-          border: '#3f3f46',
-          accent: '#06b6d4',
-          highlight: '#38bdf8'
         }
+      },
+      fontFamily: {
+        sans: ['Inter', 'SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Geist Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'wave': 'wave 1.5s ease-in-out infinite',
+        'scan': 'scan 2s linear infinite',
       },
       keyframes: {
         wave: {
           '0%, 100%': { transform: 'scaleY(0.5)' },
           '50%': { transform: 'scaleY(1.0)' },
+        },
+        scan: {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100%)' },
         }
       }
     },

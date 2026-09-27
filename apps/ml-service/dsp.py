@@ -9,6 +9,8 @@ import numpy as np
 from scipy import signal
 from typing import Tuple, Dict, Any, Optional
 
+import subprocess
+
 STANDARD_SAMPLE_RATE = 16000  # 16 kHz mono standard
 N_MELS = 128
 N_FFT = 1024
@@ -18,19 +20,46 @@ F_MIN = 50.0
 F_MAX = 8000.0
 
 
+def decode_audio_with_ffmpeg(audio_bytes: bytes, target_sr: int = STANDARD_SAMPLE_RATE) -> Optional[np.ndarray]:
+    """Uses ffmpeg process pipe to extract audio track from video (mp4, webm, mov, avi, mkv) or compressed audio formats."""
+    try:
+        cmd = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", "pipe:0",
+            "-vn",
+            "-f", "s16le",
+            "-ac", "1",
+            "-ar", str(target_sr),
+            "pipe:1"
+        ]
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate(input=audio_bytes, timeout=20)
+        if proc.returncode == 0 and len(out) > 0:
+            audio = np.frombuffer(out, dtype=np.int16).astype(np.float32) / 32768.0
+            return audio
+    except Exception:
+        pass
+    return None
+
+
 def decode_audio_bytes(audio_bytes: bytes) -> Tuple[np.ndarray, int]:
-    """Decodes audio bytes (WAV or raw PCM) into a 1D float32 numpy array normalized to [-1.0, 1.0]."""
+    """Decodes audio bytes (WAV, raw PCM, or video audio extraction) into a 1D float32 numpy array normalized to [-1.0, 1.0]."""
     if len(audio_bytes) < 44:
         raise ValueError("Audio payload is too small to contain valid audio data.")
 
-    # Check for RIFF WAV header
+    # 1. Try ffmpeg decoding first (supports MP4, WEBM video/audio, MOV, AVI, MP3, AAC, OGGS, etc.)
+    ffmpeg_audio = decode_audio_with_ffmpeg(audio_bytes, STANDARD_SAMPLE_RATE)
+    if ffmpeg_audio is not None and len(ffmpeg_audio) > 0:
+        return ffmpeg_audio, STANDARD_SAMPLE_RATE
+
+    # 2. Check for RIFF WAV header fallback
     if audio_bytes[:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE":
-        # Parse WAV header manually for robust zero-dependency decoding
         num_channels = struct.unpack_from("<H", audio_bytes, 22)[0]
         sample_rate = struct.unpack_from("<I", audio_bytes, 24)[0]
         bits_per_sample = struct.unpack_from("<H", audio_bytes, 34)[0]
 
-        # Locate 'data' chunk
         offset = 12
         while offset < len(audio_bytes) - 8:
             chunk_id = audio_bytes[offset : offset + 4]
@@ -52,13 +81,12 @@ def decode_audio_bytes(audio_bytes: bytes) -> Tuple[np.ndarray, int]:
         else:
             audio = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
 
-        # Downmix multi-channel to mono
         if num_channels > 1:
             audio = audio.reshape(-1, num_channels).mean(axis=1)
 
         return audio, sample_rate
 
-    # If raw 16-bit PCM
+    # If raw 16-bit PCM fallback
     audio = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
     return audio, STANDARD_SAMPLE_RATE
 
@@ -244,3 +272,50 @@ def compute_spectral_features(audio: np.ndarray, sr: int = STANDARD_SAMPLE_RATE)
         "zero_crossing_rate": zcr,
         "spectral_centroid": centroid,
     }
+
+
+def compute_human_vs_cat_acoustic_features(audio: np.ndarray, sr: int = STANDARD_SAMPLE_RATE) -> Dict[str, float]:
+    """Computes acoustic features specifically differentiating human vocal imitations/speech
+    from genuine feline vocalizations:
+    - High Frequency Energy Ratio (E > 2500 Hz / Total E)
+    - Spectral Rolloff (85%)
+    - Syllabic speech envelope modulation index (4-7 Hz band energy in temporal envelope)
+    """
+    if len(audio) == 0:
+        return {
+            "high_freq_ratio": 0.0,
+            "spectral_rolloff": 0.0,
+            "speech_modulation_index": 0.0,
+        }
+
+    mag = np.abs(np.fft.rfft(audio[: min(len(audio), sr * 4)]))
+    freqs = np.fft.rfftfreq(len(mag) * 2 - 1, 1.0 / sr)
+    total_energy = float(np.sum(mag**2) + 1e-9)
+
+    # High frequency energy ratio (> 2500 Hz)
+    high_freq_mask = freqs >= 2500.0
+    high_freq_energy = float(np.sum(mag[high_freq_mask]**2))
+    high_freq_ratio = float(high_freq_energy / total_energy)
+
+    # Spectral Rolloff 85%
+    cum_energy = np.cumsum(mag**2)
+    rolloff_idx = np.where(cum_energy >= 0.85 * total_energy)[0]
+    rolloff_hz = float(freqs[rolloff_idx[0]]) if len(rolloff_idx) > 0 else 0.0
+
+    # Syllabic speech envelope modulation (rhythmic amplitude envelope at 3-8 Hz typical of human speech)
+    env = np.abs(signal.hilbert(audio))
+    if len(env) > 128:
+        env_fft = np.abs(np.fft.rfft(env - np.mean(env)))
+        env_freqs = np.fft.rfftfreq(len(env), 1.0 / sr)
+        speech_band_mask = (env_freqs >= 3.0) & (env_freqs <= 8.0)
+        total_env_energy = float(np.sum(env_fft) + 1e-9)
+        speech_modulation_index = float(np.sum(env_fft[speech_band_mask]) / total_env_energy)
+    else:
+        speech_modulation_index = 0.0
+
+    return {
+        "high_freq_ratio": high_freq_ratio,
+        "spectral_rolloff": rolloff_hz,
+        "speech_modulation_index": speech_modulation_index,
+    }
+

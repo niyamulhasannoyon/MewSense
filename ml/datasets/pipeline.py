@@ -23,40 +23,40 @@ class DatasetPipeline:
         """
         assert abs((train_ratio + val_ratio + test_ratio) - 1.0) < 1e-4, "Ratios must sum to 1.0"
 
-        # Group records by cat
-        cat_to_records = defaultdict(list)
+        # Group records by cat subject or human speaker subject
+        group_to_records = defaultdict(list)
         unassigned_records = []
 
         for r in records:
-            cat_id = r.get("group_cat_id") or r.get("cat_id")
-            if cat_id:
-                cat_to_records[cat_id].append(r)
+            subject_id = r.get("group_cat_id") or r.get("cat_id") or r.get("group_speaker_id") or r.get("human_speaker_id")
+            if subject_id:
+                group_to_records[subject_id].append(r)
             else:
                 unassigned_records.append(r)
 
-        cat_ids = sorted(list(cat_to_records.keys()))
+        subject_ids = sorted(list(group_to_records.keys()))
         rng = random.Random(seed)
-        rng.shuffle(cat_ids)
+        rng.shuffle(subject_ids)
 
-        total_cats = len(cat_ids)
-        num_train = int(round(total_cats * train_ratio))
-        num_val = int(round(total_cats * val_ratio))
+        total_subjects = len(subject_ids)
+        num_train = int(round(total_subjects * train_ratio))
+        num_val = int(round(total_subjects * val_ratio))
 
-        train_cats = set(cat_ids[:num_train])
-        val_cats = set(cat_ids[num_train : num_train + num_val])
-        test_cats = set(cat_ids[num_train + num_val :])
+        train_subjects = set(subject_ids[:num_train])
+        val_subjects = set(subject_ids[num_train : num_train + num_val])
+        test_subjects = set(subject_ids[num_train + num_val :])
 
         splits = {"train": [], "val": [], "test": []}
 
-        for cat_id, cat_recs in cat_to_records.items():
-            if cat_id in train_cats:
-                splits["train"].extend(cat_recs)
-            elif cat_id in val_cats:
-                splits["val"].extend(cat_recs)
+        for sub_id, sub_recs in group_to_records.items():
+            if sub_id in train_subjects:
+                splits["train"].extend(sub_recs)
+            elif sub_id in val_subjects:
+                splits["val"].extend(sub_recs)
             else:
-                splits["test"].extend(cat_recs)
+                splits["test"].extend(sub_recs)
 
-        # Distribute unassigned records cleanly without leaking cat identities
+        # Distribute unassigned records cleanly without leaking subject identities
         for i, r in enumerate(unassigned_records):
             if i % 3 == 0:
                 splits["test"].append(r)
@@ -65,11 +65,11 @@ class DatasetPipeline:
             else:
                 splits["train"].append(r)
 
-        # Sanity check: Ensure disjoint cat sets
-        train_set = {r.get("cat_id") for r in splits["train"] if r.get("cat_id")}
-        test_set = {r.get("cat_id") for r in splits["test"] if r.get("cat_id")}
+        # Sanity check: Ensure disjoint subject sets across train and test
+        train_set = {r.get("cat_id") or r.get("human_speaker_id") for r in splits["train"] if r.get("cat_id") or r.get("human_speaker_id")}
+        test_set = {r.get("cat_id") or r.get("human_speaker_id") for r in splits["test"] if r.get("cat_id") or r.get("human_speaker_id")}
         overlap = train_set.intersection(test_set)
-        assert len(overlap) == 0, f"DATA LEAKAGE DETECTED: Cats found in both train and test: {overlap}"
+        assert len(overlap) == 0, f"DATA LEAKAGE DETECTED: Subjects found in both train and test: {overlap}"
 
         return splits
 

@@ -11,6 +11,7 @@ from dsp import (
     compute_mfcc,
     estimate_pitch_f0,
     compute_spectral_features,
+    compute_human_vs_cat_acoustic_features,
     STANDARD_SAMPLE_RATE
 )
 
@@ -28,6 +29,9 @@ class AudioFeatures:
     snr_db: float
     mel_spectrogram_summary: Dict[str, float]
     mfcc_means: list
+    high_freq_ratio: float = 0.0
+    spectral_rolloff: float = 0.0
+    speech_modulation_index: float = 0.0
 
 
 class FeatureExtractor:
@@ -50,6 +54,7 @@ class FeatureExtractor:
         # 4. Spectral analysis
         spectral = compute_spectral_features(cleaned_audio, self.sample_rate)
         f0_mean, f0_min, f0_max = estimate_pitch_f0(cleaned_audio, self.sample_rate)
+        human_vs_cat = compute_human_vs_cat_acoustic_features(cleaned_audio, self.sample_rate)
 
         # 5. Mel Spectrogram & MFCCs
         log_mel = compute_mel_spectrogram(cleaned_audio, self.sample_rate)
@@ -75,4 +80,7 @@ class FeatureExtractor:
             snr_db=round(snr_db, 1),
             mel_spectrogram_summary=mel_summary,
             mfcc_means=mfcc_means,
+            high_freq_ratio=round(human_vs_cat["high_freq_ratio"], 4),
+            spectral_rolloff=round(human_vs_cat["spectral_rolloff"], 1),
+            speech_modulation_index=round(human_vs_cat["speech_modulation_index"], 4),
         )

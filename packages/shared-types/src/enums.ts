@@ -57,7 +57,10 @@ export enum CatSex {
 export enum RecordingSource {
   MICROPHONE_WEB = 'MICROPHONE_WEB',
   MICROPHONE_MOBILE = 'MICROPHONE_MOBILE',
-  FILE_UPLOAD = 'FILE_UPLOAD'
+  FILE_UPLOAD = 'FILE_UPLOAD',
+  VIDEO_RECORDING_WEB = 'VIDEO_RECORDING_WEB',
+  VIDEO_RECORDING_MOBILE = 'VIDEO_RECORDING_MOBILE',
+  VIDEO_UPLOAD = 'VIDEO_UPLOAD'
 }
 
 export enum EnvironmentContext {
@@ -79,8 +82,28 @@ export enum ActivityContext {
   UNKNOWN = 'unknown'
 }
 
+export enum CatDetectionStatus {
+  CAT_VOCALIZATION = 'CAT_VOCALIZATION',
+  NON_CAT_SOUND = 'NON_CAT_SOUND',
+  UNCERTAIN = 'UNCERTAIN'
+}
+
+export enum PredictionStatus {
+  VALID = 'VALID',
+  LOW_CONFIDENCE = 'LOW_CONFIDENCE',
+  INSUFFICIENT_DATA = 'INSUFFICIENT_DATA',
+  NO_VALID_PREDICTION = 'NO_VALID_PREDICTION'
+}
+
+export enum OpenSetAudioStatus {
+  KNOWN_CAT_SOUND = 'KNOWN_CAT_SOUND',
+  NON_CAT_SOUND = 'NON_CAT_SOUND',
+  UNKNOWN_AUDIO = 'UNKNOWN_AUDIO'
+}
+
 export enum DatasetSplit {
   TRAIN = 'TRAIN',
   VAL = 'VAL',
   TEST = 'TEST'
 }
+

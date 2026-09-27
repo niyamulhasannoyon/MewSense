@@ -71,6 +71,11 @@ class ModelEvaluator:
         distress_support = sum(sum(cm[c].values()) for c in classes if c in distress_classes)
         distress_recall = distress_tp / distress_support if distress_support > 0 else 1.0
 
+        # 4. Dedicated Human Meow Imitation Benchmark Metrics (Hard-Negative Evaluation)
+        human_meow_samples = [i for i, label in enumerate(y_true) if label in ["HUMAN_MEOW", "NON_CAT_SOUND", "HUMAN_SPEECH"]]
+        human_meow_fp = sum(1 for i in human_meow_samples if y_pred[i] not in ["NON_CAT_SOUND", "OTHER_UNKNOWN", "UNCERTAIN"])
+        human_meow_fpr = human_meow_fp / len(human_meow_samples) if human_meow_samples else 0.0
+
         return {
             "total_samples": total_samples,
             "overall_accuracy": round(overall_accuracy, 4),
@@ -78,16 +83,38 @@ class ModelEvaluator:
             "macro_recall": round(macro_recall, 4),
             "macro_f1": round(macro_f1, 4),
             "distress_subgroup_sensitivity": round(distress_recall, 4),
+            "human_meow_false_positive_rate": round(human_meow_fpr, 4),
             "per_class": per_class_metrics,
             "confusion_matrix": cm
         }
 
+    @staticmethod
+    def evaluate_human_meow_benchmark(
+        records: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Evaluates model performance specifically on the Human Meow Imitation Benchmark dataset.
+        Calculates False Positive Rate on Human Meows, Precision, Recall, F1, and Confusion Matrix.
+        """
+        y_true = []
+        y_pred = []
+
+        for r in records:
+            true_cat = r.get("is_cat_vocalization", False)
+            predicted_status = r.get("prediction_status", "NO_VALID_PREDICTION")
+            detection_status = r.get("detection_status", "NON_CAT_SOUND")
+
+            y_true.append("CAT_VOCALIZATION" if true_cat else "NON_CAT_SOUND")
+            y_pred.append("CAT_VOCALIZATION" if detection_status == "CAT_VOCALIZATION" else "NON_CAT_SOUND")
+
+        return ModelEvaluator.evaluate_predictions(y_true, y_pred)
+
 
 if __name__ == "__main__":
     # Self-test synthetic evaluation
-    y_true = ["MEOW", "MEOW", "PURR", "HISS", "YOWL", "CHIRP_TRILL", "MEOW", "OTHER_UNKNOWN"]
-    y_pred = ["MEOW", "MEOW", "PURR", "HISS", "YOWL", "CHIRP_TRILL", "OTHER_UNKNOWN", "OTHER_UNKNOWN"]
+    y_true = ["MEOW", "MEOW", "PURR", "HISS", "YOWL", "HUMAN_MEOW", "HUMAN_MEOW", "OTHER_UNKNOWN"]
+    y_pred = ["MEOW", "MEOW", "PURR", "HISS", "YOWL", "NON_CAT_SOUND", "NON_CAT_SOUND", "OTHER_UNKNOWN"]
     res = ModelEvaluator.evaluate_predictions(y_true, y_pred)
     print("Evaluation self-test result:")
     print(f"Macro F1: {res['macro_f1']}, Accuracy: {res['overall_accuracy']}")
-    print(f"Distress Sensitivity: {res['distress_subgroup_sensitivity']}")
+    print(f"Human Meow FPR: {res['human_meow_false_positive_rate']}")
+

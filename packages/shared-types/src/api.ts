@@ -12,7 +12,10 @@ import {
   AnalysisStage,
   VocalizationType,
   ContextIntent,
-  RecordingSource
+  RecordingSource,
+  CatDetectionStatus,
+  PredictionStatus,
+  OpenSetAudioStatus
 } from './enums.js';
 
 export interface ApiSuccessResponse<T> {
@@ -121,6 +124,10 @@ export interface AnalysisResultResponseData {
     spectrogramUrl?: string | null;
   } | null;
   prediction?: {
+    detectionStatus?: CatDetectionStatus | string;
+    predictionStatus?: PredictionStatus | string;
+    openSetStatus?: OpenSetAudioStatus | string;
+    catProbability?: number;
     primarySoundType: VocalizationType;
     probableContext: ContextIntent;
     confidence: number;
@@ -128,6 +135,7 @@ export interface AnalysisResultResponseData {
     probabilities: {
       sound: Record<string, number>;
       context: Record<string, number>;
+      detection?: Record<string, number>;
     };
     explanationText: string;
     scientificDisclaimer: string;

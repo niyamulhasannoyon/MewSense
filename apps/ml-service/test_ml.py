@@ -4,7 +4,7 @@ import struct
 import numpy as np
 import pytest
 from dsp import decode_audio_bytes, preprocess_signal, compute_mel_spectrogram, compute_mfcc, estimate_pitch_f0
-from features import FeatureExtractor
+from features import FeatureExtractor, AudioFeatures
 from model import CalibratedAcousticEnsemble
 from explain import ExplainabilityEngine, DISTRESS_DISCLAIMER, GENERAL_DISCLAIMER
 
@@ -70,6 +70,7 @@ def test_model_meow_prediction():
     context = {"activity": "feeding", "foodPresent": False}
     result = model.predict(features, context)
 
+    assert result["detection_status"] == "CAT_VOCALIZATION"
     assert result["primary_sound_type"] == "MEOW"
     assert result["probable_context"] == "HUNGRY_FOOD_SEEKING"
     assert 0.0 <= result["confidence"] <= 1.0
@@ -86,6 +87,7 @@ def test_model_purr_prediction():
     context = {"activity": "resting"}
     result = model.predict(features, context)
 
+    assert result["detection_status"] == "CAT_VOCALIZATION"
     assert result["primary_sound_type"] == "PURR"
     assert result["probable_context"] == "GREETING_SOCIAL"
 
@@ -112,6 +114,59 @@ def test_distress_detection_and_disclaimer():
     )
 
     assert "distress" in explanation_res["disclaimer"].lower() or "veterinarian" in explanation_res["disclaimer"].lower()
+
+
+def test_human_meow_imitation_rejection():
+    """CRITICAL BUG TEST: Human making sound 'meow meow' into microphone must NOT be classified as Hungry/Attention/Happy."""
+    wav_bytes = generate_synthetic_wav(freq=400.0, duration=1.0, sr=16000)
+    extractor = FeatureExtractor()
+    features = extractor.extract_from_bytes(wav_bytes)
+
+    # Simulate human speech / imitation envelope features
+    features.speech_modulation_index = 0.35  # Strong human syllabic rhythm
+    features.high_freq_ratio = 0.01          # Lacks feline upper harmonics (> 2.5 kHz)
+
+    model = CalibratedAcousticEnsemble()
+    context = {"userNotes": "human saying meow meow meow into mic"}
+    result = model.predict(features, context)
+
+    # Must NOT produce a confident cat prediction like Hungry / Attention-seeking
+    assert result["detection_status"] in ["NON_CAT_SOUND", "UNCERTAIN"]
+    assert result["prediction_status"] in ["NO_VALID_PREDICTION", "LOW_CONFIDENCE"]
+    assert result["probable_context"] not in ["HUNGRY_FOOD_SEEKING", "ATTENTION_SEEKING", "PLAYFUL_EXCITED"]
+
+
+def test_background_human_speech_non_override():
+    """CRITICAL BUG TEST: 'Meow meow I am hungry' spoken by a human must not trigger cat hungry prediction."""
+    wav_bytes = generate_synthetic_wav(freq=300.0, duration=1.5, sr=16000)
+    extractor = FeatureExtractor()
+    features = extractor.extract_from_bytes(wav_bytes)
+
+    model = CalibratedAcousticEnsemble()
+    # Explicit context indicating human speech and feeding
+    context = {"isHumanSpeech": True, "activity": "feeding", "foodPresent": False}
+    result = model.predict(features, context)
+
+    # Stage 1 gate must reject audio as non-cat sound regardless of user feeding context
+    assert result["detection_status"] == "NON_CAT_SOUND"
+    assert result["prediction_status"] == "NO_VALID_PREDICTION"
+    assert result["probable_context"] == "UNKNOWN_INSUFFICIENT_CONFIDENCE"
+    assert result["probable_context"] != "HUNGRY_FOOD_SEEKING"
+
+
+def test_open_set_unknown_audio():
+    """Test open-set handling when audio has low confidence or uncalibrated characteristics."""
+    wav_bytes = generate_synthetic_wav(freq=500.0, duration=1.0, sr=16000)
+    extractor = FeatureExtractor()
+    features = extractor.extract_from_bytes(wav_bytes)
+
+    # Create model with very high detection threshold (0.95)
+    model = CalibratedAcousticEnsemble(cat_detection_threshold=0.95)
+    context = {}
+    result = model.predict(features, context)
+
+    assert result["detection_status"] == "UNCERTAIN"
+    assert result["open_set_status"] == "UNKNOWN_AUDIO"
 
 
 def test_corrupted_audio_handling():

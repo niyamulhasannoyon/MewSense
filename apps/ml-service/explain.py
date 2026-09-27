@@ -28,6 +28,20 @@ class ExplainabilityEngine:
         features: AudioFeatures,
         context: Dict[str, Any]
     ) -> Dict[str, str]:
+        # Check for Non-Cat or Uncertain Detection Status
+        detection_status = context.get("detection_status", "CAT_VOCALIZATION")
+        if detection_status == "NON_CAT_SOUND" or primary_sound == "OTHER_UNKNOWN":
+            return {
+                "explanation": "Stage 1 Gate Validation: The recorded audio did not pass feline acoustic validation. The signal exhibits spectral characteristics of human speech, vocal imitation, or non-feline background noise.",
+                "disclaimer": "No cat vocalization detected. MewSense refused behavioral interpretation to maintain scientific rigor."
+            }
+
+        if detection_status == "UNCERTAIN":
+            return {
+                "explanation": f"Stage 1 Gate Validation: Feline acoustic evidence was inconclusive (confidence {round(confidence * 100)}%). Pitch and spectral features could not be verified as a genuine cat vocalization.",
+                "disclaimer": "Inconclusive audio evidence. Please record closer to your cat in a quiet environment without background human speech."
+            }
+
         reasons = []
 
         # Acoustic characteristics explanation

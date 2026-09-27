@@ -213,4 +213,37 @@ describe('Audio & Analysis Pipeline Tests', () => {
     expect(finalResult.prediction?.scientificDisclaimer).toContain('not a literal translation');
     expect(finalResult.audioCharacteristics?.durationSeconds).toBeGreaterThan(0);
   });
+
+  it('rejects human meow sound with NON_CAT_SOUND status and NO_VALID_PREDICTION', async () => {
+    const dummyPcm = Buffer.alloc(4000); // short low-energy PCM payload
+    const recording = await audioService.handleDirectUpload(
+      'user_1',
+      dummyPcm,
+      'human_fake_meow.wav',
+      'audio/wav',
+      RecordingSource.MICROPHONE_WEB,
+      'cat_123',
+      { environment: 'indoor', activity: 'feeding', isHumanSpeech: true, userNotes: 'human saying meow meow' }
+    );
+
+    const { analysisId } = await analysisService.enqueueAnalysis('user_1', recording.id);
+
+    await analysisService.processJob(
+      {
+        analysisId,
+        recordingId: recording.id,
+        userId: 'user_1',
+        storageKey: recording.storageKey,
+        context: recording.context
+      },
+      mlClient
+    );
+
+    const finalResult = await analysisService.getAnalysisById('user_1', analysisId);
+    expect(finalResult.status).toBe('COMPLETED');
+    expect(finalResult.prediction?.detectionStatus).toBe('NON_CAT_SOUND');
+    expect(finalResult.prediction?.predictionStatus).toBe('NO_VALID_PREDICTION');
+    expect(finalResult.prediction?.probableContext).toBe('UNKNOWN_INSUFFICIENT_CONFIDENCE');
+    expect(finalResult.prediction?.scientificDisclaimer).toContain('No cat vocalization detected');
+  });
 });

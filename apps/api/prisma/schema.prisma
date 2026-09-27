@@ -25,6 +25,9 @@ enum RecordingSource {
   MICROPHONE_WEB
   MICROPHONE_MOBILE
   FILE_UPLOAD
+  VIDEO_RECORDING_WEB
+  VIDEO_RECORDING_MOBILE
+  VIDEO_UPLOAD
 }
 
 enum AnalysisStatus {
@@ -204,6 +207,10 @@ model Prediction {
   id                   String       @id @default(uuid())
   analysisId           String
   modelVersionId       String
+  detectionStatus      String?      @default("CAT_VOCALIZATION")
+  predictionStatus     String?      @default("VALID")
+  openSetStatus        String?      @default("KNOWN_CAT_SOUND")
+  catProbability       Float?       @default(1.0)
   primarySoundType     String
   probableContext      String
   confidence           Float

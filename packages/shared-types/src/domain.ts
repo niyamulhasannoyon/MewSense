@@ -7,7 +7,10 @@ import {
   CatSex,
   RecordingSource,
   EnvironmentContext,
-  ActivityContext
+  ActivityContext,
+  CatDetectionStatus,
+  PredictionStatus,
+  OpenSetAudioStatus
 } from './enums.js';
 
 export interface UserEntity {
@@ -87,12 +90,17 @@ export interface AudioMetadataEntity {
 export interface PredictionProbabilities {
   sound: Record<VocalizationType | string, number>;
   context: Record<ContextIntent | string, number>;
+  detection?: Record<string, number>;
 }
 
 export interface PredictionEntity {
   id: string;
   analysisId: string;
   modelVersionId: string;
+  detectionStatus?: CatDetectionStatus | string;
+  predictionStatus?: PredictionStatus | string;
+  openSetStatus?: OpenSetAudioStatus | string;
+  catProbability?: number;
   primarySoundType: VocalizationType;
   probableContext: ContextIntent;
   confidence: number; // 0.0 - 1.0 calibrated

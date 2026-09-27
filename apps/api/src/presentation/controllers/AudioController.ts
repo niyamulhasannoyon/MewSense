@@ -31,7 +31,7 @@ export class AudioController {
           data: null,
           error: {
             code: 'FILE_REQUIRED',
-            message: 'An audio file must be uploaded under the "audio" form field'
+            message: 'An audio or video file must be uploaded under the "audio" form field'
           },
           meta: { requestId: req.requestId || '', timestamp: new Date().toISOString() }
         });

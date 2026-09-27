@@ -27,6 +27,10 @@ export interface MLInferenceResult {
     snrDb?: number;
   };
   prediction: {
+    detectionStatus?: string;
+    predictionStatus?: string;
+    openSetStatus?: string;
+    catProbability?: number;
     primarySoundType: VocalizationType;
     probableContext: ContextIntent;
     confidence: number;
@@ -34,6 +38,7 @@ export interface MLInferenceResult {
     probabilities: {
       sound: Record<string, number>;
       context: Record<string, number>;
+      detection?: Record<string, number>;
     };
     explanationText: string;
     scientificDisclaimer: string;
@@ -128,6 +133,10 @@ export class AnalysisService {
         spectrogramUrl: metadata.spectrogramThumbnailUrl
       } : null,
       prediction: prediction ? {
+        detectionStatus: prediction.detectionStatus || 'CAT_VOCALIZATION',
+        predictionStatus: prediction.predictionStatus || 'VALID',
+        openSetStatus: prediction.openSetStatus || 'KNOWN_CAT_SOUND',
+        catProbability: prediction.catProbability ?? 1.0,
         primarySoundType: prediction.primarySoundType,
         probableContext: prediction.probableContext,
         confidence: prediction.confidence,
@@ -227,6 +236,10 @@ export class AnalysisService {
       await this.predictionRepo.create({
         analysisId,
         modelVersionId,
+        detectionStatus: mlResult.prediction.detectionStatus || 'CAT_VOCALIZATION',
+        predictionStatus: mlResult.prediction.predictionStatus || 'VALID',
+        openSetStatus: mlResult.prediction.openSetStatus || 'KNOWN_CAT_SOUND',
+        catProbability: mlResult.prediction.catProbability ?? 1.0,
         primarySoundType: mlResult.prediction.primarySoundType,
         probableContext: mlResult.prediction.probableContext,
         confidence: mlResult.prediction.confidence,

@@ -9,7 +9,7 @@ import {
   ActivityContext
 } from '@mewsense/shared-types';
 
-export const ALLOWED_AUDIO_MIME_TYPES = [
+export const ALLOWED_MEDIA_MIME_TYPES = [
   'audio/wav',
   'audio/x-wav',
   'audio/wave',
@@ -20,12 +20,20 @@ export const ALLOWED_AUDIO_MIME_TYPES = [
   'audio/m4a',
   'audio/aac',
   'audio/ogg',
-  'audio/webm'
+  'audio/webm',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/x-matroska',
+  'video/3gpp'
 ] as const;
 
-export const MAX_AUDIO_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
+export const ALLOWED_AUDIO_MIME_TYPES = ALLOWED_MEDIA_MIME_TYPES;
+
+export const MAX_AUDIO_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB (Video & Audio)
 export const MIN_RECORDING_DURATION_SECONDS = 0.4;
-export const MAX_RECORDING_DURATION_SECONDS = 60.0;
+export const MAX_RECORDING_DURATION_SECONDS = 120.0;
 
 // Auth Schemas
 export const registerSchema = z.object({
@@ -62,7 +70,9 @@ export const recordingContextSchema = z.object({
   foodPresent: z.boolean().optional(),
   otherAnimalsPresent: z.boolean().optional(),
   userNotes: z.string().max(1000).optional(),
-  userSelectedContext: z.string().max(100).optional()
+  userSelectedContext: z.string().max(100).optional(),
+  isHumanSpeech: z.boolean().optional(),
+  isHumanImitation: z.boolean().optional()
 });
 
 // Cat Schemas
@@ -83,14 +93,14 @@ export const presignUploadSchema = z.object({
   catId: z.string().uuid().optional().nullable(),
   filename: z.string().min(1).max(255),
   mimeType: z.string().refine(
-    (mime) => (ALLOWED_AUDIO_MIME_TYPES as readonly string[]).includes(mime.toLowerCase()),
-    { message: 'Unsupported audio format. Supported: .wav, .mp3, .m4a, .ogg, .webm' }
+    (mime) => (ALLOWED_MEDIA_MIME_TYPES as readonly string[]).includes(mime.toLowerCase()),
+    { message: 'Unsupported media format. Supported: .wav, .mp3, .m4a, .ogg, .webm, .mp4, .mov, .avi, .mkv' }
   ),
   fileSizeBytes: z
     .number()
     .int()
     .positive()
-    .max(MAX_AUDIO_FILE_SIZE_BYTES, 'Audio file exceeds maximum 15MB limit'),
+    .max(MAX_AUDIO_FILE_SIZE_BYTES, 'Media file exceeds maximum 100MB limit'),
   source: z.nativeEnum(RecordingSource).default(RecordingSource.MICROPHONE_WEB),
   context: recordingContextSchema.optional()
 });

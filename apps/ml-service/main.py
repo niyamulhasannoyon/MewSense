@@ -101,13 +101,17 @@ async def infer_vocalization(
         prediction_result = model_ensemble.predict(features, parsed_context)
 
         # 3. Transparent Explainability Generation
+        explanation_context = {
+            **parsed_context,
+            "detection_status": prediction_result.get("detection_status", "CAT_VOCALIZATION")
+        }
         explanation_result = explain_engine.generate_explanation(
             primary_sound=prediction_result["primary_sound_type"],
             probable_context=prediction_result["probable_context"],
             confidence=prediction_result["confidence"],
             is_distress=prediction_result["is_distress_pattern"],
             features=features,
-            context=parsed_context
+            context=explanation_context
         )
 
         return {
@@ -125,6 +129,10 @@ async def infer_vocalization(
                     "snrDb": features.snr_db
                 },
                 "prediction": {
+                    "detectionStatus": prediction_result.get("detection_status", "CAT_VOCALIZATION"),
+                    "predictionStatus": prediction_result.get("prediction_status", "VALID"),
+                    "openSetStatus": prediction_result.get("open_set_status", "KNOWN_CAT_SOUND"),
+                    "catProbability": prediction_result.get("cat_probability", 1.0),
                     "primarySoundType": prediction_result["primary_sound_type"],
                     "probableContext": prediction_result["probable_context"],
                     "confidence": prediction_result["confidence"],
