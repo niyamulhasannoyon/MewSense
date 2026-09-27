@@ -158,11 +158,15 @@ class ApiClient {
         try {
           const data: AnalysisProgressEvent = JSON.parse(e.data);
           onProgress(data);
-          if (data.status === 'COMPLETED' && data.result) {
-            onCompleted(data.result);
+          if (data.status === 'COMPLETED') {
+            if (data.result) {
+              onCompleted(data.result);
+            } else {
+              this.getAnalysis(analysisId).then(onCompleted).catch(onError);
+            }
             es.close();
           } else if (data.status === 'FAILED') {
-            onError(new Error(data.message));
+            onError(new Error(data.message || 'Bioacoustic analysis failed'));
             es.close();
           }
         } catch (err) {

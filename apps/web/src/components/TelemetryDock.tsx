@@ -21,6 +21,7 @@ import {
 
 interface TelemetryDockProps {
   currentResult: AnalysisResultResponseData | null;
+  isAnalyzing?: boolean;
   context: {
     environment: string;
     activity: string;
@@ -36,6 +37,7 @@ interface TelemetryDockProps {
 
 export const TelemetryDock: React.FC<TelemetryDockProps> = ({
   currentResult,
+  isAnalyzing,
   context,
   onChangeContext,
   history,
@@ -113,7 +115,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
                   F0 Fundamental Pitch
                 </span>
                 <span className="font-mono text-sm font-extrabold text-dsp-amber mt-0.5 block">
-                  {audio?.pitchF0Mean ? `${audio.pitchF0Mean} Hz` : '428.5 Hz'}
+                  {audio?.pitchF0Mean ? `${audio.pitchF0Mean} Hz` : isAnalyzing ? 'Calculating...' : '--'}
                 </span>
                 <span className="font-mono text-[9px] text-dsp-muted">Range: 320 - 580 Hz</span>
               </div>
@@ -123,7 +125,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
                   Pitch Contour
                 </span>
                 <span className="font-mono text-xs font-bold text-zinc-200 mt-0.5 block">
-                  {audio?.pitchF0Mean ? 'Inflected Rising' : 'Harmonic Arch'}
+                  {audio?.pitchF0Mean ? 'Harmonic Arch' : isAnalyzing ? 'Extracting...' : '--'}
                 </span>
                 <span className="font-mono text-[9px] text-dsp-muted">Formant slope</span>
               </div>
@@ -133,7 +135,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
                   Intensity Level
                 </span>
                 <span className="font-mono text-xs font-bold text-zinc-200 mt-0.5 block">
-                  {audio?.snrDb ? `-${Math.abs(Math.round(audio.snrDb))} dBFS` : '-14.8 dBFS'}
+                  {audio?.snrDb ? `-${Math.abs(Math.round(audio.snrDb))} dBFS` : isAnalyzing ? 'Measuring...' : '--'}
                 </span>
                 <span className="font-mono text-[9px] text-dsp-muted">Peak RMS Energy</span>
               </div>
@@ -143,7 +145,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
                   Duration
                 </span>
                 <span className="font-mono text-xs font-bold text-zinc-200 mt-0.5 block">
-                  {audio?.durationSeconds ? `${audio.durationSeconds}s` : '2.45s'}
+                  {audio?.durationSeconds ? `${audio.durationSeconds}s` : isAnalyzing ? 'Sampling...' : '--'}
                 </span>
                 <span className="font-mono text-[9px] text-dsp-muted">Sample window</span>
               </div>
@@ -153,7 +155,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
                   Spectral Centroid
                 </span>
                 <span className="font-mono text-xs font-bold text-dsp-cyan mt-0.5 block">
-                  {audio?.spectralCentroidHz ? `${Math.round(audio.spectralCentroidHz)} Hz` : '2,840 Hz'}
+                  {audio?.spectralCentroidHz ? `${Math.round(audio.spectralCentroidHz)} Hz` : isAnalyzing ? 'Processing...' : '--'}
                 </span>
                 <span className="font-mono text-[9px] text-dsp-muted">Brightness index</span>
               </div>
@@ -163,7 +165,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
                   Signal-Noise Ratio
                 </span>
                 <span className="font-mono text-xs font-bold text-dsp-emerald mt-0.5 block">
-                  {audio?.snrDb ? `${audio.snrDb} dB` : '26.4 dB'}
+                  {audio?.snrDb ? `${audio.snrDb} dB` : isAnalyzing ? 'Evaluating...' : '--'}
                 </span>
                 <span className="font-mono text-[9px] text-dsp-muted">High clarity</span>
               </div>
@@ -176,21 +178,21 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
                   Confidence Interval Score
                 </span>
                 <span className="font-mono text-[10px] text-dsp-emerald font-bold">
-                  SOFTMAX SCALED
+                  {pred ? 'SOFTMAX SCALED' : isAnalyzing ? 'COMPUTING...' : 'STANDBY'}
                 </span>
               </div>
               <div className="mt-2 flex items-baseline justify-between">
                 <span className="font-mono text-2xl font-black text-white">
-                  {pred ? `${Math.round(pred.confidence * 100)}%` : '94.2%'}
+                  {pred ? `${Math.round(pred.confidence * 100)}%` : isAnalyzing ? '...' : '--'}
                 </span>
                 <span className="font-mono text-xs text-dsp-muted">
-                  CI: [91.8% - 96.5%]
+                  {pred ? `CI: [${Math.max(50, Math.round(pred.confidence * 100 - 3))}% - ${Math.min(99, Math.round(pred.confidence * 100 + 3))}%]` : 'CI: N/A'}
                 </span>
               </div>
               <div className="mt-2 h-1.5 w-full rounded bg-dsp-bg overflow-hidden">
                 <div
-                  className="h-full bg-dsp-emerald"
-                  style={{ width: pred ? `${Math.round(pred.confidence * 100)}%` : '94.2%' }}
+                  className="h-full bg-dsp-emerald transition-all duration-300"
+                  style={{ width: pred ? `${Math.round(pred.confidence * 100)}%` : '0%' }}
                 />
               </div>
             </div>

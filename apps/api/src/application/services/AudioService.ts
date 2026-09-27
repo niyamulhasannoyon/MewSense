@@ -80,6 +80,10 @@ export class AudioService {
     const sha256Hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
     const existing = await this.audioRepo.findByHash(sha256Hash);
     if (existing && existing.userId === userId) {
+      const existsOnDisk = await this.storage.verifyObjectExists(existing.storageKey);
+      if (!existsOnDisk) {
+        await this.storage.uploadBuffer(existing.storageKey, fileBuffer, mimeType);
+      }
       return existing;
     }
 

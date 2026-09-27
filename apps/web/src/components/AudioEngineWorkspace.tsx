@@ -31,6 +31,7 @@ interface AudioEngineWorkspaceProps {
   isAnalyzing: boolean;
   analysisProgress: AnalysisProgressEvent | null;
   currentResult: AnalysisResultResponseData | null;
+  analysisError?: string | null;
   onReset: () => void;
   onOpenAudit: () => void;
 }
@@ -40,6 +41,7 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
   isAnalyzing,
   analysisProgress,
   currentResult,
+  analysisError,
   onReset,
   onOpenAudit
 }) => {
@@ -74,6 +76,8 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
       setWorkspaceState('ANALYZING');
     } else if (currentResult) {
       setWorkspaceState('RESULT');
+    } else {
+      setWorkspaceState((prev) => (prev === 'ANALYZING' ? 'IDLE' : prev));
     }
   }, [isAnalyzing, currentResult]);
 
@@ -488,10 +492,10 @@ export const AudioEngineWorkspace: React.FC<AudioEngineWorkspaceProps> = ({
       </div>
 
       {/* Error Banner */}
-      {errorMessage && (
+      {(errorMessage || analysisError) && (
         <div className="mx-4 mt-3 flex items-center gap-2 rounded border border-red-500/30 bg-red-500/10 p-2.5 font-mono text-xs text-red-300">
           <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-          <span>{errorMessage}</span>
+          <span>{errorMessage || analysisError}</span>
         </div>
       )}
 

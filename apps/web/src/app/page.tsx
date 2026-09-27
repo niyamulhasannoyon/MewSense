@@ -153,6 +153,7 @@ export default function Home() {
                 isAnalyzing={isAnalyzing}
                 analysisProgress={analysisProgress}
                 currentResult={currentResult}
+                analysisError={analysisError}
                 onReset={handleReset}
                 onOpenAudit={() => setShowGovernanceDrawer(true)}
               />
@@ -162,6 +163,7 @@ export default function Home() {
             <div className="lg:col-span-4 h-full">
               <TelemetryDock
                 currentResult={currentResult}
+                isAnalyzing={isAnalyzing}
                 context={context}
                 onChangeContext={setContext}
                 history={history}
